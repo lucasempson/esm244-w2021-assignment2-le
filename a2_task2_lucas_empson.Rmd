@@ -1,0 +1,142 @@
+---
+title: "ESM 244 Assignment 2 - Task 2"
+author: "Lucas Empson"
+date: "2/8/2021"
+output: 
+  html_document:
+    theme: darkly
+    toc: true
+    toc_float: true
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, error = FALSE, warning = FALSE)
+library(tidyverse)
+library(janitor)
+library(here)
+library(GGally)
+library(feasts)
+library(broom)
+library(jtools)
+```
+
+# Binary logistic regression to predict palmetto species
+
+Use binary logistic regression to test feasibility of using variables 
+
+- plant height (height) 
+- canopy length (length)
+- canopy width (width)
+- number of green leaves (green_lvs) 
+
+to classify whether a palmetto is species Serenoa repens or Sabel etonia. 
+
+1: Serenoa repens
+2: Sabal etonia
+
+Use code folding and hide all messages & warnings in your knitted HTML.
+
+```{r}
+# Read in palmetto data, keeping only species, height, length, width, and green_lvs variables
+palmetto <- read_csv(here("data", "palmetto.csv")) %>%
+  clean_names() %>% 
+  select(species, height, length, width, green_lvs) %>% 
+  mutate(species = case_when(
+    species == 1 ~ "Serenoa repens", # Change numerical observations to their corresponding species names
+    species == 2 ~ "Sabal etonia")
+    ) %>% 
+  mutate(species = as_factor(species)) # Convert to factor
+
+# Factor levels: Serenoa repens will be 0, Sabal etonia will be 1
+# levels(palmetto$species)
+```
+
+# Main Content {.tabset}
+## Tab 1: Simple visualizations of trends across variables 
+```{r}
+# Data viz of green_lvs (x-axis) and height (y-axis) by species (color)
+ggplot(data = palmetto, aes(x = green_lvs, y = height)) +
+  geom_point(aes(color = species)) +
+  labs(x = "Number of green leaves", y = "Height") +
+  theme_minimal()
+
+# Data viz of length (x-axis) and height (y-axis) by species (color)
+ggplot(data = palmetto, aes(x = length, y = height)) +
+  geom_point(aes(color = species)) +
+  labs(x = "Length", y = "Height") +
+  theme_minimal()
+  
+# Data viz of width (x-axis) and length (y-axis) by species (color)
+ggplot(data = palmetto, aes(x = width, y = length)) +
+  geom_point(aes(color = species)) +
+  labs(x = "Width", y = "Height") +
+  theme_minimal()
+```
+
+## Tab 2: Binary logistic regression (BLR)
+BLR using the four variables (height, length, width, & green_lvs) to predict which species
+```{r, comment = NA}
+# glm
+palmetto_blr <- glm(species ~ height + length + width + green_lvs,
+                    data = palmetto,
+                    family = "binomial")
+
+# BLR results:
+palmetto_blr
+summary(palmetto_blr)
+
+# Get tidy version of the BLR results using `broom::tidy()`
+palmetto_blr_tidy <- broom::tidy(palmetto_blr) # All coefficients are significant -- ****Why is `green_lvs` coefficient's p-value exactly 0?***
+```
+
+```{r}
+# Convert log odds to probability: 
+palmetto_blr_fitted <- palmetto_blr %>% 
+  broom::augment(type.predict = "response")
+# `.fitted` column shows probability of the palmetto species being "Sabel etonia" based on the four variables `height`, `length`, `width`, and `green_lvs`
+
+# A visualization of green_lvs on x-axis and probability of being Sabal etonia on y-axis
+# ggplot(data = palmetto_blr_fitted, aes(x = green_lvs, y = .fitted)) +
+#   geom_point(aes(color = species)) +
+#   geom_smooth(aes(color = species), se = FALSE)
+```
+
+## Tab 3: Visualizations of p("Sabel etonia")
+Probability of being "Sabel etonia" by predictor variable using `jtools::effect_plot()`
+```{r}
+# height
+effect_plot(palmetto_blr,
+            pred = height,
+            interval = TRUE,
+            y.label = "Probability of being `Sabal etonia`")
+
+# length
+effect_plot(palmetto_blr,
+            pred = length,
+            interval = TRUE,
+            y.label = "Probability of being `Sabal etonia`")
+# width
+effect_plot(palmetto_blr,
+            pred = width,
+            interval = TRUE,
+            y.label = "Probability of being `Sabal etonia`")
+
+# green_lvs
+effect_plot(palmetto_blr,
+            pred = green_lvs,
+            interval = TRUE,
+            y.label = "Probability of being `Sabal etonia`")
+```
+
+
+
+
+
+
+
+
+
+
+
+
